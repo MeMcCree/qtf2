@@ -25,6 +25,9 @@ DoIncludeScript("qtf2/player.nut", ROOT);
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
 gamerules.ValidateScriptScope();
 
+::ClientCommand <- Entities.CreateByClassname("point_clientcommand");
+Entities.DispatchSpawn(ClientCommand);
+
 PrecacheSound("weapons/airstrike_small_explosion_01.wav");
 PrecacheSound("weapons/cow_mangler_explosion_normal_05.wav");
 
@@ -94,11 +97,15 @@ const STAT_LENGTH = 0;
     return playerTable[playerIndex][stat];
 }
 
-::QTF2_HandleGrenadeInput <- function(self) {
+::QTF2_HandleGrenadeInput <- function(self, num) {
     local buttons = GetPropInt(self, "m_nButtons");
-    
+    local button = IN_GRENADE1;
+    if (num == 1) {
+        button = IN_GRENADE2;
+    }
+
     if (self.GetScriptScope().waitingToStopInput) {
-        if (!(buttons & IN_GRENADE1)) {
+        if (!(buttons & IN_GRENADE1) && !(buttons & IN_GRENADE2)) {
             self.GetScriptScope().waitingToStopInput = false;
         }
         return;
@@ -110,20 +117,23 @@ const STAT_LENGTH = 0;
         self.GetScriptScope().waitingToStopInput = true;
 
         local eyepos = self.EyePosition();
-        local idx = grenade_maker.SpawnNade(self.GetScriptScope().heldNadeType, eyepos, Vector(), self);
+        local idx = grenade_maker.SpawnNade(self.GetScriptScope().heldNadeType, self.GetOrigin() + Vector(0, 0, 32), Vector(), self);
         grenade_maker.grenades[idx].detonation_time = Time() + 0.1;
         return;
     }
 
-    if (buttons & IN_GRENADE1) {
+    if (buttons & button) {
         if (!self.GetScriptScope().isHoldingNade) {
-            if (self.GetScriptScope().nades[0].amount <= 0) return;
-            self.GetScriptScope().nades[0].amount--;
-            printl("Cooked " + self.GetScriptScope().nades[0].amount + " left");
+            if (self.GetScriptScope().nades[num].amount <= 0) return;
+            self.GetScriptScope().nades[num].amount--;
+            printl("Cooked " + self.GetScriptScope().nades[num].amount + " left");
             self.GetScriptScope().waitingToStopInput = true;
             self.GetScriptScope().isHoldingNade = true;
-            self.GetScriptScope().heldNadeType = self.GetScriptScope().nades[0].type;
+            self.GetScriptScope().heldNadeType = self.GetScriptScope().nades[num].type;
             self.GetScriptScope().heldNadeDetonationTime <- Time() + NormalGrenade.time_to_detonate;
+
+            StopSoundOn(grenCountSound, self);
+            EmitSoundOnClient(grenCountSound, self);
         } else {
             printl("Thrown");
             self.GetScriptScope().isHoldingNade = false;
@@ -136,6 +146,16 @@ const STAT_LENGTH = 0;
             grenade_maker.grenades[idx].detonation_time = self.GetScriptScope().heldNadeDetonationTime;
         }
     }
+}
+
+::SpawnNadeOnDeath <- function(self) {
+    if (!self.GetScriptScope().isHoldingNade) return;
+
+    self.GetScriptScope().isHoldingNade = false;
+    self.GetScriptScope().waitingToStopInput = true;
+
+    local idx = grenade_maker.SpawnNade(self.GetScriptScope().heldNadeType, self.GetOrigin(), Vector(0, 0, 400), self);
+    grenade_maker.grenades[idx].detonation_time = self.GetScriptScope().heldNadeDetonationTime + 0.1;
 }
 
 ::AutoBhop <- function() {
@@ -158,8 +178,41 @@ const STAT_LENGTH = 0;
 }
 
 ::QTF2_PlayerThink <- function() {
-    QTF2_HandleGrenadeInput(self);
-    AutoBhop();
+    QTF2_HandleGrenadeInput(self, 0);
+    QTF2_HandleGrenadeInput(self, 1);
+    //AutoBhop();
+    if (GrenadeEffects.Conc in self.GetScriptScope().effects) {
+        ClientCommand.AcceptInput("Command", "r_screenoverlay \"effects/water_warp\"", self, null);
+
+        local weapon = self.GetActiveWeapon();
+        if (weapon) {
+            weapon.AddAttribute("projectile spread angle penalty", 5.0, 0);
+            local spread = 1.0;
+            if ("prevSpreadPenalty" in weapon.GetScriptScope()) {
+                spread = weapon.GetScriptScope().prevSpreadPenalty;
+            }
+            spread *= 2;
+            weapon.AddAttribute("spread penalty", spread, 0);
+        }
+
+        if (Time() > self.GetScriptScope().effects[GrenadeEffects.Conc]) {
+            delete self.GetScriptScope().effects[GrenadeEffects.Conc];
+        }
+    } else {
+        ClientCommand.AcceptInput("Command", "r_screenoverlay off", self, null);
+        
+        local weapon = self.GetActiveWeapon();
+        if (weapon) {
+            weapon.RemoveAttribute("projectile spread angle penalty");
+            if ("prevSpreadPenalty" in weapon.GetScriptScope()) {
+                local spread = weapon.GetScriptScope().prevSpreadPenalty;
+                weapon.AddAttribute("spread penalty", spread, 0);
+            } else {
+                weapon.RemoveAttribute("spread penalty");
+            }
+        }
+    }
+
     return -1;
 }
 
@@ -181,17 +234,25 @@ getroottable()[EventsID] <- {
     OnGameEvent_scorestats_accumulated_update = function(params) { delete getroottable()[EventsID] }
 
     OnGameEvent_player_death = function(params) {
+        local player = GetPlayerFromUserID(params.userid);
+        RemoveDroppedWeapons();
+        SpawnNadeOnDeath(player);
     }
 
     OnGameEvent_player_spawn = function(params) {
         local player = GetPlayerFromUserID(params.userid);
-        player.ValidateScriptScope();
-        player.GetScriptScope().isHoldingNade <- false;
-        player.GetScriptScope().waitingToStopInput <- false;
-        player.GetScriptScope().heldNadeDetonationTime <- 0;
-        player.GetScriptScope().heldNadeType <- 0;
-        player.GetScriptScope().lastonground <- 0;
-        AddThinkToEnt(player, "QTF2_PlayerThink");
+        if (player) {
+            player.ValidateScriptScope();
+            player.GetScriptScope().isHoldingNade <- false;
+            player.GetScriptScope().waitingToStopInput <- false;
+            player.GetScriptScope().heldNadeDetonationTime <- 0;
+            player.GetScriptScope().heldNadeType <- 0;
+            player.GetScriptScope().effects <- {};
+            player.GetScriptScope().lastonground <- 0;
+            AddThinkToEnt(player, "QTF2_PlayerThink");
+
+            EntFireByHandle(player, "CallScriptFunction", "ApplyPlayerAttributes", 0, null, null);
+        }
     }
 
     OnGameEvent_player_team = function (params) {
@@ -202,7 +263,8 @@ getroottable()[EventsID] <- {
 
     OnGameEvent_post_inventory_application = function (params) {
         local player = GetPlayerFromUserID(params.userid);
-        GivePlayerLoadout(player)
+        GivePlayerLoadout(player);
+        RemoveConcEffect(player);
     }
 
     OnGameEvent_tf_game_over = function(params) {

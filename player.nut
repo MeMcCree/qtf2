@@ -1,13 +1,17 @@
-::GiveClassNades <- function(ply) {
-    local pc = ply.GetPlayerClass();
-    if (pc < TF_CLASS_SCOUT || pc > TF_CLASS_SPY) return;
+::ApplyPlayerAttributes <- function() {
+    self.AddCustomAttribute("no double jump", 1, -1);
+}
 
-    ply.GetScriptScope().nades <- [clone QTF2_DefClassNades[pc][0], clone QTF2_DefClassNades[pc][1]];
+::RemoveDroppedWeapons <- function() {
+    local weapon = null 
+    while (weapon = Entities.FindByClassname(weapon, "tf_dropped_weapon")) {
+        weapon.Destroy();
+    }
 }
 
 ::GivePlayerLoadout <- function(player) {
     GiveClassNades(player);
-    
+
 	switch (player.GetPlayerClass()) {
 		case TF_CLASS_SCOUT:
 			GiveScoutLoadout(player)
@@ -40,11 +44,30 @@
 			break;
 	}
 	GivePlayerWeapon(player, CreateClassMelee(player.GetPlayerClass()))
+
+    RemoveDroppedWeapons();
 }
 
 ::GiveScoutLoadout <- function(player) {
-	GivePlayerWeapon(player, CreateNailGun(), true)
-	GivePlayerWeapon(player, CreateShotgun())
+    local syrgun = CreateNailGun()
+	GivePlayerWeapon(player, syrgun, true)
+    local shotty = CreateShotgun();
+    GivePlayerWeapon(player, shotty)
+    
+    local sollyHands = "models/weapons/c_models/c_soldier_arms.mdl";
+    local medicHands = "models/weapons/c_models/c_medic_arms.mdl";
+    PrecacheModel(sollyHands);
+    PrecacheModel(medicHands);
+
+    local modelIndex = GetModelIndex(sollyHands);
+    shotty.SetModelSimple(sollyHands);
+    shotty.SetCustomViewModelModelIndex(modelIndex);
+    NetProps.SetPropInt(shotty, "m_iViewModelIndex", modelIndex);
+
+    modelIndex = GetModelIndex(medicHands);
+    syrgun.SetModelSimple(medicHands);
+    syrgun.SetCustomViewModelModelIndex(modelIndex);
+    NetProps.SetPropInt(syrgun, "m_iViewModelIndex", modelIndex);
 }
 
 ::GiveSoldierLoadout <- function(player) {

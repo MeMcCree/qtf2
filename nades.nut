@@ -1,3 +1,8 @@
+printl("QTF2: Loaded nades.nut")
+
+::grenCountSound <- "VFX.GrenCount";
+PrecacheScriptSound(grenCountSound);
+
 enum GrenadeTypes {
     Normal,
     Conc,
@@ -5,22 +10,39 @@ enum GrenadeTypes {
     Size
 };
 
+enum GrenadeEffects {
+    Conc,
+    Flash,
+    Tranq,
+    Size
+}
+
 ::QTF2_DefClassNades <- {
-    [TF_CLASS_SCOUT] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
-    [TF_CLASS_SOLDIER] = [{type = GrenadeTypes.Conc, amount = 2}, {type = GrenadeTypes.Conc, amount = 2}],
+    [TF_CLASS_SCOUT] = [{type = GrenadeTypes.Conc, amount = 2}, {type = GrenadeTypes.Normal, amount = 0}],
+    [TF_CLASS_SOLDIER] = [{type = GrenadeTypes.Normal, amount = 4}, {type = GrenadeTypes.Conc, amount = 4}],
     [TF_CLASS_PYRO] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
-    [TF_CLASS_DEMOMAN] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
-    [TF_CLASS_HEAVYWEAPONS] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
+    [TF_CLASS_DEMOMAN] = [{type = GrenadeTypes.Conc, amount = 2}, {type = GrenadeTypes.Normal, amount = 0}],
+    [TF_CLASS_HEAVYWEAPONS] = [{type = GrenadeTypes.Conc, amount = 44444}, {type = GrenadeTypes.Normal, amount = 44444}],
     [TF_CLASS_ENGINEER] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
-    [TF_CLASS_MEDIC] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
+    [TF_CLASS_MEDIC] = [{type = GrenadeTypes.Normal, amount = 44444}, {type = GrenadeTypes.Conc, amount = 44444}],
     [TF_CLASS_SNIPER] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
     [TF_CLASS_SPY] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
 };
 
+::ApplyConcEffect <- function(ply) {
+    ply.GetScriptScope().effects[GrenadeEffects.Conc] <- Time() + 4.0;
+}
+
+::RemoveConcEffect <- function(ply) {
+    if (GrenadeEffects.Conc in ply.GetScriptScope().effects) {
+        delete ply.GetScriptScope().effects[GrenadeEffects.Conc];
+    }
+}
+
 class BaseGrenade {
     model = "models/weapons/w_models/w_cannonball.mdl";
     entity = null;
-    time_to_detonate = 2.2;
+    time_to_detonate = 3.8;
     detonation_time = null;
     deleted = false;
 
@@ -53,15 +75,15 @@ class BaseGrenade {
         local explosion = Entities.CreateByClassname("tf_generic_bomb");
         
         explosion.SetOrigin(entity.GetOrigin());
-        SetPropFloat(explosion, "m_flRadius", 10.0);
-        SetPropFloat(explosion, "m_flDamage", 25.0);
+        SetPropFloat(explosion, "m_flRadius", 256.0);
+        SetPropFloat(explosion, "m_flDamage", 100.0);
         SetPropString(explosion, "m_strExplodeParticleName", "ExplosionCore_MidAir");
         SetPropString(explosion, "m_strExplodeSoundName", "weapons/airstrike_small_explosion_01.wav");
-        SetPropBool(explosion, m_bPassActivator, true);
+        SetPropInt(explosion, "m_nHealth", 999);
 
         Entities.DispatchSpawn(explosion);
 
-        explosion.AcceptInput("Detonate", "", entity.GetOwner(), null);
+        explosion.TakeDamage(1000.0, 0, entity.GetOwner());
 
         deleted = true;
         entity.Destroy();
@@ -107,17 +129,23 @@ class ConcGrenade extends BaseGrenade {
 
         explosion.TakeDamage(1000.0, 0, entity.GetOwner());
 
-        local radius = 256;
-        DebugDrawCircle(entity.GetOrigin(), Vector(1, 0, 1), 1.0, radius, false, 2.0);
+        local radius = 240;
+        DebugDrawCircle(entity.GetOrigin(), Vector(255, 0, 255), 1.0, radius, false, 2.0);
+        DebugDrawCircle(entity.GetOrigin(), Vector(0, 255, 0), 1.0, radius + 40, false, 2.0);
         local ent = null;
-        while (ent = Entities.FindInSphere(ent, entity.GetOrigin(), radius)) {
+        while (ent = Entities.FindInSphere(ent, entity.GetOrigin(), radius + 40)) {
             if (ent.IsPlayer()) {
                 local dir = entity.GetOrigin() - ent.GetOrigin();
-                local pushforce = dir.Length() / radius;
-                dir.Norm();
-                //pushforce = pushforce * pushforce;
-                dir = dir.Scale(-pushforce * 1024.0);
-                ent.SetAbsVelocity(ent.GetAbsVelocity() + dir);
+                //local pushforce = dir.Length() / radius;
+                local points = dir.Length() * 0.5;
+                points = radius - points;
+                local pushforce = dir.Scale(-points / 20.0);
+                //dir.Norm();
+                //dir = dir.Scale(-pushforce * 1024.0);
+                //ent.SetAbsVelocity(ent.GetAbsVelocity() + dir);
+                ent.SetAbsVelocity(pushforce);
+
+                ApplyConcEffect(ent);
             }
         }
 
@@ -146,3 +174,10 @@ class GrenadeMaker {
         return new_idx - 1;
     }
 };
+
+::GiveClassNades <- function(ply) {
+    local pc = ply.GetPlayerClass();
+    if (pc < TF_CLASS_SCOUT || pc > TF_CLASS_SPY) return;
+
+    ply.GetScriptScope().nades <- [clone QTF2_DefClassNades[pc][0], clone QTF2_DefClassNades[pc][1]];
+}
