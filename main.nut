@@ -96,7 +96,7 @@ const STAT_LENGTH = 0;
 
 ::QTF2_HandleGrenadeInput <- function(self) {
     local buttons = GetPropInt(self, "m_nButtons");
-
+    
     if (self.GetScriptScope().waitingToStopInput) {
         if (!(buttons & IN_GRENADE1)) {
             self.GetScriptScope().waitingToStopInput = false;
@@ -105,28 +105,36 @@ const STAT_LENGTH = 0;
     }
 
     if (self.GetScriptScope().isHoldingNade && self.GetScriptScope().heldNadeDetonationTime < Time()) {
+        printl("Selfdet");
         self.GetScriptScope().isHoldingNade = false;
         self.GetScriptScope().waitingToStopInput = true;
 
         local eyepos = self.EyePosition();
-        local idx = grenade_maker.SpawnNade(GrenadeTypes.Normal, eyepos, Vector(), self);
+        local idx = grenade_maker.SpawnNade(self.GetScriptScope().heldNadeType, eyepos, Vector(), self);
         grenade_maker.grenades[idx].detonation_time = Time() + 0.1;
         return;
     }
 
-    if (buttons & IN_GRENADE1 && !self.GetScriptScope().isHoldingNade) {
-        self.GetScriptScope().isHoldingNade = true;
-        self.GetScriptScope().heldNadeDetonationTime <- Time() + NormalGrenade.time_to_detonate;
-    }
+    if (buttons & IN_GRENADE1) {
+        if (!self.GetScriptScope().isHoldingNade) {
+            if (self.GetScriptScope().nades[0].amount <= 0) return;
+            self.GetScriptScope().nades[0].amount--;
+            printl("Cooked " + self.GetScriptScope().nades[0].amount + " left");
+            self.GetScriptScope().waitingToStopInput = true;
+            self.GetScriptScope().isHoldingNade = true;
+            self.GetScriptScope().heldNadeType = self.GetScriptScope().nades[0].type;
+            self.GetScriptScope().heldNadeDetonationTime <- Time() + NormalGrenade.time_to_detonate;
+        } else {
+            printl("Thrown");
+            self.GetScriptScope().isHoldingNade = false;
+            self.GetScriptScope().waitingToStopInput = true;
 
-    if (!(buttons & IN_GRENADE1) && self.GetScriptScope().isHoldingNade) {
-        self.GetScriptScope().isHoldingNade = false;
+            local eyepos = self.EyePosition();
+            local eyedir = self.EyeAngles().Forward();
 
-        local eyepos = self.EyePosition();
-        local eyedir = self.EyeAngles().Forward();
-
-        local idx = grenade_maker.SpawnNade(GrenadeTypes.Normal, eyepos + eyedir * 32, eyedir * 600, self);
-        grenade_maker.grenades[idx].detonation_time = self.GetScriptScope().heldNadeDetonationTime;
+            local idx = grenade_maker.SpawnNade(self.GetScriptScope().heldNadeType, eyepos + eyedir * 32, eyedir * 600, self);
+            grenade_maker.grenades[idx].detonation_time = self.GetScriptScope().heldNadeDetonationTime;
+        }
     }
 }
 
@@ -181,6 +189,7 @@ getroottable()[EventsID] <- {
         player.GetScriptScope().isHoldingNade <- false;
         player.GetScriptScope().waitingToStopInput <- false;
         player.GetScriptScope().heldNadeDetonationTime <- 0;
+        player.GetScriptScope().heldNadeType <- 0;
         player.GetScriptScope().lastonground <- 0;
         AddThinkToEnt(player, "QTF2_PlayerThink");
     }

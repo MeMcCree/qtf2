@@ -1,5 +1,13 @@
+::GiveClassNades <- function(ply) {
+    local pc = ply.GetPlayerClass();
+    if (pc < TF_CLASS_SCOUT || pc > TF_CLASS_SPY) return;
+
+    ply.GetScriptScope().nades <- [clone QTF2_DefClassNades[pc][0], clone QTF2_DefClassNades[pc][1]];
+}
 
 ::GivePlayerLoadout <- function(player) {
+    GiveClassNades(player);
+    
 	switch (player.GetPlayerClass()) {
 		case TF_CLASS_SCOUT:
 			GiveScoutLoadout(player)

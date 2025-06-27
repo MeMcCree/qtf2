@@ -5,6 +5,18 @@ enum GrenadeTypes {
     Size
 };
 
+::QTF2_DefClassNades <- {
+    [TF_CLASS_SCOUT] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
+    [TF_CLASS_SOLDIER] = [{type = GrenadeTypes.Conc, amount = 2}, {type = GrenadeTypes.Conc, amount = 2}],
+    [TF_CLASS_PYRO] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
+    [TF_CLASS_DEMOMAN] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
+    [TF_CLASS_HEAVYWEAPONS] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
+    [TF_CLASS_ENGINEER] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
+    [TF_CLASS_MEDIC] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
+    [TF_CLASS_SNIPER] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
+    [TF_CLASS_SPY] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
+};
+
 class BaseGrenade {
     model = "models/weapons/w_models/w_cannonball.mdl";
     entity = null;
@@ -95,7 +107,7 @@ class ConcGrenade extends BaseGrenade {
 
         explosion.TakeDamage(1000.0, 0, entity.GetOwner());
 
-        local radius = 300;
+        local radius = 256;
         DebugDrawCircle(entity.GetOrigin(), Vector(1, 0, 1), 1.0, radius, false, 2.0);
         local ent = null;
         while (ent = Entities.FindInSphere(ent, entity.GetOrigin(), radius)) {
@@ -103,7 +115,7 @@ class ConcGrenade extends BaseGrenade {
                 local dir = entity.GetOrigin() - ent.GetOrigin();
                 local pushforce = dir.Length() / radius;
                 dir.Norm();
-                pushforce = pushforce * pushforce;
+                //pushforce = pushforce * pushforce;
                 dir = dir.Scale(-pushforce * 1024.0);
                 ent.SetAbsVelocity(ent.GetAbsVelocity() + dir);
             }
