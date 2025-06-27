@@ -16,7 +16,8 @@ foreach (name, method in ::NetProps.getclass())
     if (name != "IsValid")
         getroottable()[name] <- method.bindenv(::NetProps)
 
-DoIncludeScript("qtf2_nades.nut", ROOT);
+DoIncludeScript("qtf2/nades.nut", ROOT);
+DoIncludeScript("qtf2/weapons.nut", ROOT);
 
 ::grenade_maker <- GrenadeMaker();
 
@@ -41,7 +42,6 @@ PrecacheSound("weapons/cow_mangler_explosion_normal_05.wav");
 
 const BLUE = 3;
 const RED = 2;
-const MAX_WEAPONS = 8;
 
 ::MaxPlayers <- MaxClients().tointeger()
 
@@ -95,7 +95,7 @@ const STAT_LENGTH = 0;
 
 ::QTF2_HandleGrenadeInput <- function(self) {
     local buttons = GetPropInt(self, "m_nButtons");
-    
+
     if (self.GetScriptScope().waitingToStopInput) {
         if (!(buttons & IN_GRENADE1)) {
             self.GetScriptScope().waitingToStopInput = false;
@@ -132,14 +132,14 @@ const STAT_LENGTH = 0;
 ::AutoBhop <- function() {
     local vel = self.GetAbsVelocity();
     local buttons = NetProps.GetPropInt(self, "m_nButtons");
-    
+
     local flags = self.GetFlags();
     //they were just grounded, do a vanilla jump
     if (lastonground) {
         lastonground = flags & Constants.FPlayer.FL_ONGROUND;
         return;
     }
-    lastonground = flags & FL_ONGROUND; 
+    lastonground = flags & FL_ONGROUND;
     //they just landed, do a bhop
     if ((flags & FL_ONGROUND) && (buttons & IN_JUMP)) {
         //800 refers to gravity, if you care about being 1:1 with vanilla and differing gravities go ahead and change it
@@ -191,6 +191,8 @@ getroottable()[EventsID] <- {
     }
 
     OnGameEvent_post_inventory_application = function (params) {
+        local player = GetPlayerFromUserID(params.userid);
+        GivePlayerWeapon(player, CreateShotgun())
     }
 
     OnGameEvent_tf_game_over = function(params) {
@@ -219,6 +221,7 @@ getroottable()[EventsID] <- {
 
 function OnPostSpawn() {
     AddThinkToEnt(gamerules, "QTF2_Think");
+    printl("Postspawn")
 }
 
 local EventsTable = getroottable()[EventsID]
