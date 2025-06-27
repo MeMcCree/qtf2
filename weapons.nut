@@ -34,6 +34,23 @@ printl("QTF2: Loaded weapons.nut")
 		player.Weapon_Switch(weapon)
 }
 
+::RemoveCosmetic <- function(player, item_id) {
+	for (local wearable = player.FirstMoveChild(); wearable != null; wearable = wearable.NextMovePeer())
+	{
+		if (wearable.GetClassname() != "tf_wearable")
+			continue;
+
+		local id = NetProps.GetPropInt(wearable, "m_AttributeManager.m_Item.m_iItemDefinitionIndex")
+		if(id == item_id)
+		{
+			wearable.Destroy()
+			return true;
+		}
+	}
+
+	return false;
+}
+
 // --- MULTI CLASS ---
 ::CreateSuperShotgun <- function() {
 	local weapon = CreateWeapon("tf_weapon_shotgun_soldier", 10)
@@ -47,8 +64,58 @@ printl("QTF2: Loaded weapons.nut")
 ::CreateShotgun <- function() {
 	local weapon = CreateWeapon("tf_weapon_shotgun_soldier", 10)
 	weapon.AddAttribute("clip size bonus", 1.34, 0)
+	weapon.AddAttribute("maxammo secondary increased", 1.12, 0)
 	weapon.AddAttribute("damage penalty", 0.5, 0)
 	weapon.AddAttribute("spread penalty", 0.6, 0)
+	weapon.DispatchSpawn()
+
+	return weapon
+}
+
+//TODO: Give scout melee the same numbers as normal melees
+::CreateClassMelee <- function (playerClass) {
+	local weapon = null
+	switch (playerClass) {
+		case TF_CLASS_SCOUT:
+			weapon = CreateWeapon("tf_weapon_bat", 0)
+			break;
+		case TF_CLASS_SOLDIER:
+			weapon = CreateWeapon("tf_weapon_shovel", 6)
+			break;
+		case TF_CLASS_PYRO:
+			weapon = CreateWeapon("tf_weapon_fireaxe", 2)
+			break;
+		case TF_CLASS_DEMOMAN:
+			weapon = CreateWeapon("tf_weapon_bottle", 1)
+			break;
+		case TF_CLASS_HEAVYWEAPONS:
+			weapon = CreateWeapon("tf_weapon_fists", 5)
+			break;
+		case TF_CLASS_ENGINEER:
+			weapon = CreateWeapon("tf_weapon_wrench", 7)
+			break;
+		case TF_CLASS_MEDIC:
+			weapon = CreateWeapon("tf_weapon_bonesaw", 8)
+			break;
+		case TF_CLASS_SNIPER:
+			weapon = CreateWeapon("tf_weapon_club", 3)
+			break;
+		case TF_CLASS_SPY:
+			weapon = CreateWeapon("tf_weapon_knife", 4)
+			break;
+		default:
+			return null;
+	}
+
+	weapon.DispatchSpawn()
+	return weapon;
+}
+
+// --- SCOUT ---
+::CreateNailGun <- function() {
+	local weapon = CreateWeapon("tf_weapon_syringegun_medic", 17)
+	weapon.AddAttribute("clip size bonus", 2.5, 0)
+	weapon.AddAttribute("maxammo primary increased", 3.12, 0)
 	weapon.DispatchSpawn()
 
 	return weapon

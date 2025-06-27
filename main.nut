@@ -18,6 +18,7 @@ foreach (name, method in ::NetProps.getclass())
 
 DoIncludeScript("qtf2/nades.nut", ROOT);
 DoIncludeScript("qtf2/weapons.nut", ROOT);
+DoIncludeScript("qtf2/player.nut", ROOT);
 
 ::grenade_maker <- GrenadeMaker();
 
@@ -192,7 +193,7 @@ getroottable()[EventsID] <- {
 
     OnGameEvent_post_inventory_application = function (params) {
         local player = GetPlayerFromUserID(params.userid);
-        GivePlayerWeapon(player, CreateShotgun())
+        GivePlayerLoadout(player)
     }
 
     OnGameEvent_tf_game_over = function(params) {
