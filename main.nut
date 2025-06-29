@@ -28,8 +28,16 @@ gamerules.ValidateScriptScope();
 ::ClientCommand <- Entities.CreateByClassname("point_clientcommand");
 Entities.DispatchSpawn(ClientCommand);
 
-PrecacheSound("weapons/airstrike_small_explosion_01.wav");
-PrecacheSound("weapons/cow_mangler_explosion_normal_05.wav");
+::IsPlayerValid <- function (player) {
+    if (player == null || player.IsPlayer() == false)
+        return false;
+
+    if (player.GetTeam() == 0 || player.GetTeam() == 1)
+        return false;
+
+    return true;
+}
+
 
 ::SetData <- function(name, value) {
     local data = gamerules.GetScriptScope();
