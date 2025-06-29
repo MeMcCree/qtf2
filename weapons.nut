@@ -101,6 +101,7 @@ printl("QTF2: Loaded weapons.nut")
 			break;
 		case TF_CLASS_MEDIC:
 			weapon = CreateWeapon("tf_weapon_bonesaw", 8)
+            weapon.AddAttribute("bleeding duration", 8.0, 0);
 			break;
 		case TF_CLASS_SNIPER:
 			weapon = CreateWeapon("tf_weapon_club", 3)

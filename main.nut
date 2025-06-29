@@ -190,7 +190,9 @@ const STAT_LENGTH = 0;
     QTF2_HandleGrenadeInput(self, 1);
     //AutoBhop();
     if (GrenadeEffects.Conc in self.GetScriptScope().effects) {
-        ClientCommand.AcceptInput("Command", "r_screenoverlay \"effects/water_warp\"", self, null);
+        if (ClientCommand) {
+            ClientCommand.AcceptInput("Command", "r_screenoverlay \"effects/water_warp\"", self, null);
+        }
 
         local weapon = self.GetActiveWeapon();
         if (weapon) {
@@ -207,8 +209,10 @@ const STAT_LENGTH = 0;
             delete self.GetScriptScope().effects[GrenadeEffects.Conc];
         }
     } else {
-        ClientCommand.AcceptInput("Command", "r_screenoverlay off", self, null);
-        
+        if (ClientCommand) {
+            ClientCommand.AcceptInput("Command", "r_screenoverlay off", self, null);
+        }
+
         local weapon = self.GetActiveWeapon();
         if (weapon) {
             weapon.RemoveAttribute("projectile spread angle penalty");
@@ -231,7 +235,9 @@ const STAT_LENGTH = 0;
 ::QTF2_Think <- function() {
     grenade_maker.grenades = grenade_maker.grenades.filter(FilterDeletedNades);
     foreach (id, grenade in grenade_maker.grenades) {
-        grenade.Think();
+        if (!grenade.deleted) {
+            grenade.Think();
+        }
     }
 
     return -1;
@@ -273,6 +279,7 @@ getroottable()[EventsID] <- {
         local player = GetPlayerFromUserID(params.userid);
         GivePlayerLoadout(player);
         RemoveConcEffect(player);
+        RemoveFlashEffect(player);
     }
 
     OnGameEvent_tf_game_over = function(params) {
