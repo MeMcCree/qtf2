@@ -5,6 +5,16 @@ PrecacheScriptSound(grenCountSound);
 
 ::HealGrenHealAmount <- 100;
 
+PrecacheParticle("gasgren_gas");
+PrecacheParticle("gasgren_gas_red");
+PrecacheParticle("healgren_exp");
+PrecacheParticle("healgren_exp_red");
+
+PrecacheParticle("concgren_wave");
+PrecacheParticle("concgren_wave_red");
+
+PrecacheParticle("flashgren_exp");
+
 enum GrenadeTypes {
     Normal,
     Conc,
@@ -18,6 +28,18 @@ enum GrenadeTypes {
     Size
 };
 
+::NadeNames <- {
+    [GrenadeTypes.Normal] = "Normal",
+    [GrenadeTypes.Conc] = "Concussion",
+    [GrenadeTypes.Napalm] = "Napalm",
+    [GrenadeTypes.Gas] = "Gas",
+    [GrenadeTypes.Flash] = "Flash",
+    [GrenadeTypes.Mirv] = "Mirv",
+    [GrenadeTypes.Nail] = "Nail",
+    [GrenadeTypes.Emp] = "EMP",
+    [GrenadeTypes.Heal] = "Heal",
+};
+
 ::NadeSounds <- {
     [GrenadeTypes.Normal] = {
         explode = "weapons/airstrike_small_explosion_01.wav"
@@ -29,7 +51,6 @@ enum GrenadeTypes {
         explode = "Ambient.Fireball"
     },
     [GrenadeTypes.Gas] = {
-        explode = ""
     },
     [GrenadeTypes.Flash] = {
         explode = "weapons/barret_arm_zap.wav"
@@ -48,6 +69,41 @@ enum GrenadeTypes {
         heal = "HealthKit.Touch"
     },
 };
+//drg_cow_explosioncore_charged_blue emp
+::NadeParticles <- {
+    [GrenadeTypes.Normal] = {
+        explode = "ExplosionCore_MidAir"
+    },
+    [GrenadeTypes.Conc] = {
+        explodeBlue = "concgren_wave",
+        explodeRed = "concgren_wave_red"
+    },
+    [GrenadeTypes.Napalm] = {
+        explode = "Explosions_MA_Dustup_2"
+    },
+    [GrenadeTypes.Gas] = {
+        gasBlue = "gasgren_gas",
+        gasRed = "gasgren_gas_red"
+    },
+    [GrenadeTypes.Flash] = {
+        explode = "flashgren_exp"
+    },
+    [GrenadeTypes.Mirv] = {
+        explode = "ExplosionCore_MidAir"
+    },
+    [GrenadeTypes.Nail] = {
+        explode = "ExplosionCore_MidAir"
+    },
+    [GrenadeTypes.Emp] = {
+        explodeBlue = "drg_cow_explosioncore_charged_blue",
+        explodeRed = "drg_cow_explosioncore_charged"
+    },
+    [GrenadeTypes.Heal] = {
+        explodeBlue = "healgren_exp",
+        explodeRed = "healgren_exp_red"
+        heal = ""
+    },
+};
 
 foreach (_, sounds in NadeSounds) {
     foreach (_, sound in sounds) {
@@ -60,27 +116,118 @@ enum GrenadeEffects {
     Flash,
     Tranq
     Size
-}
+};
 
 ::QTF2_DefClassNades <- {
-    [TF_CLASS_SCOUT] = [{type = GrenadeTypes.Flash, amount = 4}, {type = GrenadeTypes.Conc, amount = 4}],
-    [TF_CLASS_SOLDIER] = [{type = GrenadeTypes.Normal, amount = 4}, {type = GrenadeTypes.Nail, amount = 4}],
-    [TF_CLASS_PYRO] = [{type = GrenadeTypes.Napalm, amount = 444}, {type = GrenadeTypes.Normal, amount = 444}],
-    [TF_CLASS_DEMOMAN] = [{type = GrenadeTypes.Mirv, amount = 444}, {type = GrenadeTypes.Normal, amount = 0}],
-    [TF_CLASS_HEAVYWEAPONS] = [{type = GrenadeTypes.Conc, amount = 44444}, {type = GrenadeTypes.Normal, amount = 44444}],
-    [TF_CLASS_ENGINEER] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
-    [TF_CLASS_MEDIC] = [{type = GrenadeTypes.Normal, amount = 44444}, {type = GrenadeTypes.Heal, amount = 44444}],
-    [TF_CLASS_SNIPER] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
-    [TF_CLASS_SPY] = [{type = GrenadeTypes.Normal, amount = 0}, {type = GrenadeTypes.Normal, amount = 0}],
+    [TF_CLASS_SCOUT] = [{type = GrenadeTypes.Flash, amount = 2}, {type = GrenadeTypes.Conc, amount = 2}],
+    [TF_CLASS_SOLDIER] = [{type = GrenadeTypes.Normal, amount = 2}, {type = GrenadeTypes.Nail, amount = 1}],
+    [TF_CLASS_PYRO] = [{type = GrenadeTypes.Normal, amount = 2}, {type = GrenadeTypes.Napalm, amount = 1}],
+    [TF_CLASS_DEMOMAN] = [{type = GrenadeTypes.Normal, amount = 3}, {type = GrenadeTypes.Mirv, amount = 1}],
+    [TF_CLASS_HEAVYWEAPONS] = [{type = GrenadeTypes.Normal, amount = 2}, {type = GrenadeTypes.Mirv, amount = 1}],
+    [TF_CLASS_ENGINEER] = [{type = GrenadeTypes.Normal, amount = 2}, {type = GrenadeTypes.Emp, amount = 1}],
+    [TF_CLASS_MEDIC] = [{type = GrenadeTypes.Normal, amount = 2}, {type = GrenadeTypes.Heal, amount = 2}],
+    [TF_CLASS_SNIPER] = [{type = GrenadeTypes.Normal, amount = 2}, {type = GrenadeTypes.Normal, amount = 0}],
+    [TF_CLASS_SPY] = [{type = GrenadeTypes.Normal, amount = 2}, {type = GrenadeTypes.Gas, amount = 2}],
 };
 
 ::ApplyConcEffect <- function(ply) {
+    local firstTime = true;
+    if (GrenadeEffects.Tranq in ply.GetScriptScope().effects)
+        firstTime = false;
+
     ply.GetScriptScope().effects[GrenadeEffects.Conc] <- Time() + 10.0;
+
+    if (!firstTime)
+        return;
+
+    if (ClientCommand) {
+        ClientCommand.AcceptInput("Command", "r_screenoverlay \"effects/conc\"", ply, null);
+    }
+
+    for (local i = 0; i < 8; i++) {
+        local wpn = NetProps.GetPropEntityArray(ply, "m_hMyWeapons", i);
+        if (wpn == null)
+            continue;
+
+        local projSpread = wpn.GetAttribute("projectile spread angle penalty", 1.0);
+        local spread = wpn.GetAttribute("spread penalty", 1.0);
+        wpn.ValidateScriptScope();
+        wpn.GetScriptScope().projSpread <- projSpread;
+        wpn.GetScriptScope().spread <- spread;
+        wpn.AddAttribute("projectile spread angle penalty", 5.0, 0);
+        wpn.AddAttribute("spread penalty", spread * 2, 0);
+    }
 }
 
 ::RemoveConcEffect <- function(ply) {
     if (GrenadeEffects.Conc in ply.GetScriptScope().effects) {
         delete ply.GetScriptScope().effects[GrenadeEffects.Conc];
+
+        if (ClientCommand) {
+            ClientCommand.AcceptInput("Command", "r_screenoverlay \"off\"", ply, null);
+        }
+
+        for (local i = 0; i < 8; i++) {
+            local wpn = NetProps.GetPropEntityArray(ply, "m_hMyWeapons", i);
+            if (wpn == null)
+                continue;
+
+            if ("projSpread" in wpn.GetScriptScope())
+                wpn.AddAttribute("projectile spread angle penalty", wpn.GetScriptScope().projSpread, 0);
+
+            if ("spread" in wpn.GetScriptScope())
+                wpn.AddAttribute("spread penalty", wpn.GetScriptScope().spread, 0);
+        }
+    }
+}
+
+::ApplyTranqEffect <- function(ply) {
+    local firstTime = true;
+    if (GrenadeEffects.Tranq in ply.GetScriptScope().effects)
+        firstTime = false;
+
+    ply.GetScriptScope().effects[GrenadeEffects.Tranq] <- Time() + 10.0;
+
+    if (!firstTime)
+        return;
+
+    for (local i = 0; i < 8; i++) {
+        local wpn = NetProps.GetPropEntityArray(ply, "m_hMyWeapons", i);
+        if (wpn == null)
+            continue;
+
+        local fireRatePenalty = wpn.GetAttribute("fire rate penalty", 1.0);
+        local reloadTimePenalty = wpn.GetAttribute("reload time increased", 1.0);
+        local spinupTimePenalty = wpn.GetAttribute("minigun spinup time increased", 1.0);
+        
+        wpn.ValidateScriptScope();
+        wpn.GetScriptScope().fireRatePenalty <- fireRatePenalty;
+        wpn.GetScriptScope().reloadTimePenalty <- reloadTimePenalty;
+        wpn.GetScriptScope().spinupTimePenalty <- spinupTimePenalty;
+        wpn.AddAttribute("fire rate penalty", fireRatePenalty * 1.5, 0);
+        wpn.AddAttribute("reload time increased", reloadTimePenalty * 1.5, 0);
+        wpn.AddAttribute("minigun spinup time increased", spinupTimePenalty * 1.5, 0);
+    }
+}
+
+::RemoveTranqEffect <- function(ply) {
+    if (GrenadeEffects.Tranq in ply.GetScriptScope().effects) {
+        delete ply.GetScriptScope().effects[GrenadeEffects.Tranq];
+        DumpObject(ply.GetScriptScope().effects);
+        for (local i = 0; i < 8; i++) {
+            local wpn = NetProps.GetPropEntityArray(ply, "m_hMyWeapons", i);
+            if (wpn == null)
+                continue;
+
+            if ("fireRatePenalty" in wpn.GetScriptScope())
+                wpn.AddAttribute("fire rate penalty", wpn.GetScriptScope().fireRatePenalty, 0);
+
+            if ("reloadTimePenalty" in wpn.GetScriptScope())
+                wpn.AddAttribute("reload time increased", wpn.GetScriptScope().reloadTimePenalty, 0);
+
+            if ("spinupTimePenalty" in wpn.GetScriptScope())
+                wpn.AddAttribute("minigun spinup time increased", wpn.GetScriptScope().spinupTimePenalty, 0);
+        }
     }
 }
 
@@ -95,6 +242,8 @@ enum GrenadeEffects {
 
     FlashFade.AcceptInput("Alpha", "255", null, null);
     FlashFade.AcceptInput("Fade", "", null, null);
+
+    FlashFade.Destroy();
     ply.GetScriptScope().effects[GrenadeEffects.Flash] <- Time() + 4.0;
 }
 
@@ -110,6 +259,8 @@ enum GrenadeEffects {
 
         FlashFade.AcceptInput("Alpha", "0", null, null);
         FlashFade.AcceptInput("Fade", "", null, null);
+
+        FlashFade.Destroy();
         delete ply.GetScriptScope().effects[GrenadeEffects.Flash];
     }
 }
@@ -164,7 +315,7 @@ class BaseGrenade {
         explosion.SetOrigin(entity.GetOrigin());
         SetPropFloat(explosion, "m_flRadius", 256.0);
         SetPropFloat(explosion, "m_flDamage", 100.0);
-        SetPropString(explosion, "m_strExplodeParticleName", "ExplosionCore_MidAir");
+        SetPropString(explosion, "m_strExplodeParticleName", NadeParticles[GrenadeTypes.Normal].explode);
         SetPropString(explosion, "m_strExplodeSoundName", NadeSounds[GrenadeTypes.Normal].explode);
         SetPropInt(explosion, "m_nHealth", 999);
 
@@ -186,7 +337,7 @@ class NormalGrenade extends BaseGrenade {
         explosion.SetOrigin(entity.GetOrigin());
         SetPropFloat(explosion, "m_flRadius", 256.0);
         SetPropFloat(explosion, "m_flDamage", 100.0);
-        SetPropString(explosion, "m_strExplodeParticleName", "ExplosionCore_MidAir");
+        SetPropString(explosion, "m_strExplodeParticleName", NadeParticles[GrenadeTypes.Normal].explode);
         SetPropString(explosion, "m_strExplodeSoundName", NadeSounds[GrenadeTypes.Normal].explode);
         SetPropInt(explosion, "m_nHealth", 999);
 
@@ -219,7 +370,7 @@ class MirvGrenade extends BaseGrenade {
         explosion.SetOrigin(entity.GetOrigin());
         SetPropFloat(explosion, "m_flRadius", 256.0);
         SetPropFloat(explosion, "m_flDamage", 30.0);
-        SetPropString(explosion, "m_strExplodeParticleName", "ExplosionCore_MidAir");
+        SetPropString(explosion, "m_strExplodeParticleName", NadeParticles[GrenadeTypes.Mirv].explode);
         SetPropString(explosion, "m_strExplodeSoundName", NadeSounds[GrenadeTypes.Normal].explode);
         SetPropInt(explosion, "m_nHealth", 999);
 
@@ -251,15 +402,13 @@ class MirvGrenade extends BaseGrenade {
         explosion.SetOrigin(entity.GetOrigin());
         SetPropFloat(explosion, "m_flRadius", 128.0);
         SetPropFloat(explosion, "m_flDamage", 60.0);
-        SetPropString(explosion, "m_strExplodeParticleName", "ExplosionCore_MidAir");
+        SetPropString(explosion, "m_strExplodeParticleName", NadeParticles[GrenadeTypes.Mirv].explode);
         SetPropString(explosion, "m_strExplodeSoundName", NadeSounds[GrenadeTypes.Normal].explode);
         SetPropInt(explosion, "m_nHealth", 999);
 
         Entities.DispatchSpawn(explosion);
 
         explosion.TakeDamage(1000.0, 0, owner);
-
-        DebugDrawCircle(entity.GetOrigin(), Vector(255, 0, 0), 1.0, 128, false, 2.0);
 
         deleted = true;
         entity.Destroy();
@@ -275,7 +424,8 @@ class ConcGrenade extends BaseGrenade {
         explosion.SetOrigin(entity.GetOrigin());
         SetPropFloat(explosion, "m_flRadius", 0.0);
         SetPropFloat(explosion, "m_flDamage", 0.0);
-        SetPropString(explosion, "m_strExplodeParticleName", "drg_cow_explosion_sparks_blue");
+        local particle = owner.GetTeam() == TF_TEAM_BLUE ? NadeParticles[GrenadeTypes.Conc].explodeBlue : NadeParticles[GrenadeTypes.Conc].explodeRed;
+        SetPropString(explosion, "m_strExplodeParticleName", particle);
         SetPropString(explosion, "m_strExplodeSoundName", NadeSounds[GrenadeTypes.Conc].explode);
         SetPropInt(explosion, "m_nHealth", 999);
 
@@ -284,8 +434,6 @@ class ConcGrenade extends BaseGrenade {
         explosion.TakeDamage(1000.0, 0, owner);
 
         local radius = 240;
-        DebugDrawCircle(entity.GetOrigin(), Vector(255, 0, 255), 1.0, radius, false, 2.0);
-        DebugDrawCircle(entity.GetOrigin(), Vector(0, 255, 0), 1.0, radius + 40, false, 2.0);
         local ent = null;
         while (ent = Entities.FindInSphere(ent, entity.GetOrigin(), radius + 40)) {
             if (IsPlayerValid(ent) && ent.IsAlive()) {
@@ -313,7 +461,8 @@ class HealGrenade extends BaseGrenade {
         explosion.SetOrigin(entity.GetOrigin());
         SetPropFloat(explosion, "m_flRadius", 0.0);
         SetPropFloat(explosion, "m_flDamage", 0.0);
-        SetPropString(explosion, "m_strExplodeParticleName", "drg_cow_explosion_sparks_blue");
+        local particle = owner.GetTeam() == TF_TEAM_BLUE ? NadeParticles[GrenadeTypes.Heal].explodeBlue : NadeParticles[GrenadeTypes.Heal].explodeRed;
+        SetPropString(explosion, "m_strExplodeParticleName", particle);
         SetPropString(explosion, "m_strExplodeSoundName", NadeSounds[GrenadeTypes.Heal].explode);
         SetPropInt(explosion, "m_nHealth", 999);
 
@@ -322,7 +471,6 @@ class HealGrenade extends BaseGrenade {
         explosion.TakeDamage(1000.0, 0, owner);
 
         local radius = 256;
-        DebugDrawCircle(entity.GetOrigin(), Vector(255, 0, 0), 1.0, radius, false, 2.0);
         local ent = null;
         while (ent = Entities.FindInSphere(ent, entity.GetOrigin(), radius)) {
             if (IsPlayerValid(ent) && ent.IsAlive() && (!owner || ent.GetTeam() == owner.GetTeam())) {
@@ -349,6 +497,102 @@ class HealGrenade extends BaseGrenade {
     }
 };
 
+class EmpGrenade extends BaseGrenade {
+    model = "models/weapons/w_models/w_cannonball.mdl";
+
+    function ExplodeBuilding(building) {
+        local explosion = Entities.CreateByClassname("tf_generic_bomb");
+        
+        local buildingExploded = false;
+        local buildingPos = building.GetOrigin();
+        explosion.SetOrigin(buildingPos);
+        
+        if (building.GetHealth() < 100) {
+            buildingExploded = true;
+        }
+
+        SetPropFloat(explosion, "m_flRadius", 1.0);
+        SetPropFloat(explosion, "m_flDamage", 200);
+        local particle = owner.GetTeam() == TF_TEAM_BLUE ? NadeParticles[GrenadeTypes.Emp].explodeBlue : NadeParticles[GrenadeTypes.Emp].explodeRed;
+        SetPropString(explosion, "m_strExplodeParticleName", particle);
+        SetPropInt(explosion, "m_nHealth", 999);
+
+        Entities.DispatchSpawn(explosion);
+
+        explosion.TakeDamage(1000.0, 0, owner);
+
+        if (!buildingExploded)
+            return;
+
+        explosion = Entities.CreateByClassname("tf_generic_bomb");
+        explosion.SetOrigin(buildingPos);
+
+        SetPropFloat(explosion, "m_flRadius", 256.0);
+        SetPropFloat(explosion, "m_flDamage", 100);
+        SetPropInt(explosion, "m_nHealth", 999);
+
+        Entities.DispatchSpawn(explosion);
+
+        explosion.TakeDamage(1000.0, 0, owner);
+    }
+
+    function ExplodePlayer(ply) {
+        local explosion = Entities.CreateByClassname("tf_generic_bomb");
+        
+        explosion.SetOrigin(ply.GetOrigin() + Vector(0, 0, 48));
+        SetPropFloat(explosion, "m_flRadius", 1.0);
+        SetPropFloat(explosion, "m_flDamage", 75);
+        local particle = owner.GetTeam() == TF_TEAM_BLUE ? NadeParticles[GrenadeTypes.Emp].explodeBlue : NadeParticles[GrenadeTypes.Emp].explodeRed;
+        SetPropString(explosion, "m_strExplodeParticleName", particle);
+        SetPropInt(explosion, "m_nHealth", 999);
+
+        Entities.DispatchSpawn(explosion);
+
+        explosion.TakeDamage(1000.0, 0, owner);
+
+        for (local i = 0; i < 8; i++) {
+            local wpn = NetProps.GetPropEntityArray(ply, "m_hMyWeapons", i);
+            if (wpn == null)
+                continue;
+
+            local ammoType = GetPropInt(wpn, "m_iPrimaryAmmoType");
+            if (ammoType > 0)
+                local amount = GetPropIntArray(ply, "m_iAmmo", ammoType);
+                SetPropIntArray(ply, "m_iAmmo", floor(amount / 2), ammoType);
+        }
+    }
+
+
+    function Detonate() {
+        local explosion = Entities.CreateByClassname("tf_generic_bomb");
+        
+        explosion.SetOrigin(entity.GetOrigin());
+        SetPropFloat(explosion, "m_flRadius", 0.0);
+        SetPropFloat(explosion, "m_flDamage", 0.0);
+        local particle = owner.GetTeam() == TF_TEAM_BLUE ? NadeParticles[GrenadeTypes.Emp].explodeBlue : NadeParticles[GrenadeTypes.Emp].explodeRed;
+        SetPropString(explosion, "m_strExplodeParticleName", particle);
+        SetPropString(explosion, "m_strExplodeSoundName", NadeSounds[GrenadeTypes.Emp].explode);
+        SetPropInt(explosion, "m_nHealth", 999);
+
+        Entities.DispatchSpawn(explosion);
+
+        explosion.TakeDamage(1000.0, 0, owner);
+
+        local radius = 256;
+        local ent = null;
+        while (ent = Entities.FindInSphere(ent, entity.GetOrigin(), radius)) {
+            if (IsPlayerValid(ent) && ent.IsAlive() && (!owner || ent.GetTeam() != owner.GetTeam())) {
+                ExplodePlayer(ent);
+            } else if ((ent.GetClassname() == "obj_sentrygun" || ent.GetClassname() == "obj_dispenser") && (!owner || ent.GetTeam() != owner.GetTeam())) {
+                ExplodeBuilding(ent);
+            }
+        }
+
+        deleted = true;
+        entity.Destroy();
+    }
+};
+
 class FlashGrenade extends BaseGrenade {
     model = "models/weapons/w_models/w_cannonball.mdl";
 
@@ -358,7 +602,7 @@ class FlashGrenade extends BaseGrenade {
         explosion.SetOrigin(entity.GetOrigin());
         SetPropFloat(explosion, "m_flRadius", 0.0);
         SetPropFloat(explosion, "m_flDamage", 0.0);
-        SetPropString(explosion, "m_strExplodeParticleName", "drg_cow_explosion_sparks_blue");
+        SetPropString(explosion, "m_strExplodeParticleName", NadeParticles[GrenadeTypes.Flash].explode);
         //SetPropString(explosion, "m_strExplodeSoundName", NadeSounds[GrenadeTypes.Flash].explode);
         SetPropInt(explosion, "m_nHealth", 999);
 
@@ -373,7 +617,6 @@ class FlashGrenade extends BaseGrenade {
         explosion.TakeDamage(1000.0, 0, owner);
 
         local radius = 256;
-        DebugDrawCircle(entity.GetOrigin(), Vector(255, 0, 0), 1.0, radius, false, 2.0);
         local ent = null;
         while (ent = Entities.FindInSphere(ent, entity.GetOrigin(), radius)) {
             if (IsPlayerValid(ent) && ent.IsAlive() && (!owner || owner == ent || ent.GetTeam() != owner.GetTeam())) {
@@ -415,7 +658,7 @@ class NapalmGrenade extends BaseGrenade {
         explosion.SetOrigin(entity.GetOrigin());
         SetPropFloat(explosion, "m_flRadius", 0.0);
         SetPropFloat(explosion, "m_flDamage", 0.0);
-        SetPropString(explosion, "m_strExplodeParticleName", "Explosions_MA_Dustup_2");
+        SetPropString(explosion, "m_strExplodeParticleName", NadeParticles[GrenadeTypes.Napalm].explode);
         SetPropString(explosion, "m_strExplodeSoundName", NadeSounds[GrenadeTypes.Napalm].explode);
         SetPropInt(explosion, "m_nHealth", 999);
 
@@ -424,7 +667,6 @@ class NapalmGrenade extends BaseGrenade {
         explosion.TakeDamage(1000.0, 0, owner);
 
         local radius = 256;
-        DebugDrawCircle(entity.GetOrigin(), Vector(255, 0, 0), 1.0, radius, false, 2.0);
         local ent = null;
         while (ent = Entities.FindInSphere(ent, entity.GetOrigin(), radius)) {
             if (IsPlayerValid(ent) && ent.IsAlive()) {
@@ -531,8 +773,8 @@ class NailGrenade extends BaseGrenade {
         explosion.SetOrigin(entity.GetOrigin());
         SetPropFloat(explosion, "m_flRadius", 128.0);
         SetPropFloat(explosion, "m_flDamage", 40.0);
-        SetPropString(explosion, "m_strExplodeParticleName", "ExplosionCore_MidAir");
-        SetPropString(explosion, "m_strExplodeSoundName", NadeSounds[GrenadeTypes.Normal].explode);
+        SetPropString(explosion, "m_strExplodeParticleName", NadeParticles[GrenadeTypes.Nail].explode);
+        SetPropString(explosion, "m_strExplodeSoundName", NadeSounds[GrenadeTypes.Nail].explode);
         SetPropInt(explosion, "m_nHealth", 999);
         Entities.DispatchSpawn(explosion);
         explosion.TakeDamage(1000.0, 0, owner);
@@ -543,6 +785,65 @@ class NailGrenade extends BaseGrenade {
     }
 };
 
+class GasGrenade extends BaseGrenade {
+    model = "models/weapons/w_models/w_cannonball.mdl";
+    thinks = [
+        function(self) {
+            if (Time() > self.detonation_time) {
+                self.entity.SetMoveType(MOVETYPE_FLY, MOVECOLLIDE_FLY_BOUNCE);
+                self.entity.SetAbsVelocity(Vector(0, 0, 0));
+                self.gasStopTime = Time() + 6.0;
+
+                self.curThink++;
+            }
+        },
+        function(self) {
+            if (Time() > self.gasStopTime) {
+                self.deleted = true;
+                self.entity.Destroy();
+                return;
+            }
+
+            if (Time() > self.nextEffectTime) {
+                local explosion = Entities.CreateByClassname("tf_generic_bomb");
+        
+                explosion.SetOrigin(self.entity.GetOrigin());
+                SetPropFloat(explosion, "m_flRadius", 0.0);
+                SetPropFloat(explosion, "m_flDamage", 0.0);
+                local particle = self.owner.GetTeam() == TF_TEAM_BLUE ? NadeParticles[GrenadeTypes.Gas].gasBlue : NadeParticles[GrenadeTypes.Gas].gasRed;
+                SetPropString(explosion, "m_strExplodeParticleName", particle);
+                SetPropInt(explosion, "m_nHealth", 999);
+                Entities.DispatchSpawn(explosion);
+
+                explosion.TakeDamage(1000.0, 0, self.owner);
+
+                self.nextEffectTime = Time() + 0.5;
+            }
+
+            if (Time() > self.nextHurtTime) {
+                local ent = null;
+                while (ent = Entities.FindInSphere(ent, self.entity.GetOrigin(), self.radius)) {
+                    if (IsPlayerValid(ent) && ent.IsAlive() && (!self.owner || ent.GetTeam() == self.owner.GetTeam())) {
+                        ent.TakeDamageEx(self.entity, self.owner, null, Vector(), Vector(), 5.0, DMG_POISON);
+                        ApplyTranqEffect(ent);
+                    }
+                }
+                self.nextHurtTime = Time() + 0.5;
+            }
+        }
+    ];
+
+    curThink = 0;
+    gasStopTime = 0;
+    nextHurtTime = 0;
+    nextEffectTime = 0;
+    gasParticles = null;
+    radius = 256;
+
+    function Think() {
+        thinks[curThink](this);
+    }
+};
 
 class GrenadeMaker {
     grenades = {};
@@ -578,6 +879,14 @@ class GrenadeMaker {
                 grenades[new_idx] <- MirvGrenade(pos, vel, owner);
                 break;
             }
+            case GrenadeTypes.Emp: {
+                grenades[new_idx] <- EmpGrenade(pos, vel, owner);
+                break;
+            }
+            case GrenadeTypes.Gas: {
+                grenades[new_idx] <- GasGrenade(pos, vel, owner);
+                break;
+            }
             default:
         }
         new_idx += 1;
@@ -587,7 +896,8 @@ class GrenadeMaker {
 
 ::GiveClassNades <- function(ply) {
     local pc = ply.GetPlayerClass();
-    if (pc < TF_CLASS_SCOUT || pc > TF_CLASS_SPY) return;
+
+    if (pc < TF_CLASS_SCOUT || pc > TF_CLASS_ENGINEER) return;
 
     ply.GetScriptScope().nades <- [clone QTF2_DefClassNades[pc][0], clone QTF2_DefClassNades[pc][1]];
 }

@@ -12,7 +12,7 @@
 ::GivePlayerLoadout <- function(player) {
     GiveClassNades(player);
     
-	switch (player.GetPlayerClass()) {
+	/*switch (player.GetPlayerClass()) {
 		case TF_CLASS_SCOUT:
 			GiveScoutLoadout(player)
 			break;
@@ -43,7 +43,7 @@
 		default:
 			break;
 	}
-	GivePlayerWeapon(player, CreateClassMelee(player.GetPlayerClass()))
+	GivePlayerWeapon(player, CreateClassMelee(player.GetPlayerClass()))*/
 
     RemoveDroppedWeapons();
 }

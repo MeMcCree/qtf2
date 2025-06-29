@@ -16,6 +16,10 @@ foreach (name, method in ::NetProps.getclass())
     if (name != "IsValid")
         getroottable()[name] <- method.bindenv(::NetProps)
 
+::PrecacheParticle <- function(name) {
+    PrecacheEntityFromTable({classname = "info_particle_system", effect_name = name});
+}
+
 DoIncludeScript("qtf2/nades.nut", ROOT);
 DoIncludeScript("qtf2/weapons.nut", ROOT);
 DoIncludeScript("qtf2/player.nut", ROOT);
@@ -27,6 +31,30 @@ gamerules.ValidateScriptScope();
 
 ::ClientCommand <- Entities.CreateByClassname("point_clientcommand");
 Entities.DispatchSpawn(ClientCommand);
+
+::gren1Text <- SpawnEntityFromTable("game_text", {
+    "wide"  : "f0"
+    "tall"  : "f0"
+    "x"     : "0.9"
+    "y"     : "0.5"
+    "color" : "255 255 255"
+    "holdtime" : "10"
+    "channel" : "0"
+});
+
+Entities.DispatchSpawn(gren1Text);
+
+::gren2Text <- SpawnEntityFromTable("game_text", {
+    "wide"  : "f0"
+    "tall"  : "f0"
+    "x"     : "0.9"
+    "y"     : "0.55"
+    "color" : "255 255 255"
+    "holdtime" : "10"
+    "channel" : "1"
+});
+
+Entities.DispatchSpawn(gren2Text);
 
 ::IsPlayerValid <- function (player) {
     if (player == null || player.IsPlayer() == false)
@@ -120,12 +148,11 @@ const STAT_LENGTH = 0;
     }
 
     if (self.GetScriptScope().isHoldingNade && self.GetScriptScope().heldNadeDetonationTime < Time()) {
-        printl("Selfdet");
         self.GetScriptScope().isHoldingNade = false;
         self.GetScriptScope().waitingToStopInput = true;
 
         local eyepos = self.EyePosition();
-        local idx = grenade_maker.SpawnNade(self.GetScriptScope().heldNadeType, self.GetOrigin() + Vector(0, 0, 32), Vector(), self);
+        local idx = grenade_maker.SpawnNade(self.GetScriptScope().heldNadeType, self.GetOrigin() + Vector(0, 0, 40), Vector(), self);
         grenade_maker.grenades[idx].detonation_time = Time() + 0.1;
         return;
     }
@@ -186,44 +213,40 @@ const STAT_LENGTH = 0;
 }
 
 ::QTF2_PlayerThink <- function() {
-    QTF2_HandleGrenadeInput(self, 0);
-    QTF2_HandleGrenadeInput(self, 1);
+    if (!IsPlayerValid(self)) {
+        SetPropString(self, "m_iszScriptThinkFunction", "");
+        return;
+    }
+
+    if (self.IsAlive()) {
+        QTF2_HandleGrenadeInput(self, 0);
+        QTF2_HandleGrenadeInput(self, 1);
+    } else {
+        RemoveConcEffect(self);
+        RemoveTranqEffect(self);
+        RemoveFlashEffect(self);
+    }
+
     //AutoBhop();
     if (GrenadeEffects.Conc in self.GetScriptScope().effects) {
-        if (ClientCommand) {
-            ClientCommand.AcceptInput("Command", "r_screenoverlay \"effects/water_warp\"", self, null);
-        }
-
-        local weapon = self.GetActiveWeapon();
-        if (weapon) {
-            weapon.AddAttribute("projectile spread angle penalty", 5.0, 0);
-            local spread = 1.0;
-            if ("prevSpreadPenalty" in weapon.GetScriptScope()) {
-                spread = weapon.GetScriptScope().prevSpreadPenalty;
-            }
-            spread *= 2;
-            weapon.AddAttribute("spread penalty", spread, 0);
-        }
-
         if (Time() > self.GetScriptScope().effects[GrenadeEffects.Conc]) {
-            delete self.GetScriptScope().effects[GrenadeEffects.Conc];
-        }
-    } else {
-        if (ClientCommand) {
-            ClientCommand.AcceptInput("Command", "r_screenoverlay off", self, null);
-        }
-
-        local weapon = self.GetActiveWeapon();
-        if (weapon) {
-            weapon.RemoveAttribute("projectile spread angle penalty");
-            if ("prevSpreadPenalty" in weapon.GetScriptScope()) {
-                local spread = weapon.GetScriptScope().prevSpreadPenalty;
-                weapon.AddAttribute("spread penalty", spread, 0);
-            } else {
-                weapon.RemoveAttribute("spread penalty");
-            }
+            RemoveConcEffect(self);
         }
     }
+
+    if (GrenadeEffects.Tranq in self.GetScriptScope().effects) {
+        if (Time() > self.GetScriptScope().effects[GrenadeEffects.Tranq]) {
+            RemoveTranqEffect(self);
+        }
+    }
+    
+    local grens = self.GetScriptScope().nades;
+    local val = NadeNames[grens[0].type] + " : " + grens[0].amount;
+    gren1Text.KeyValueFromString("message", val);
+    EntFireByHandle(gren1Text, "Display", "", 0.0, self, self);
+    val = NadeNames[grens[1].type] + " : " + grens[1].amount;
+    gren2Text.KeyValueFromString("message", val);
+    EntFireByHandle(gren2Text, "Display", "", 0.0, self, self);
 
     return -1;
 }
@@ -263,13 +286,19 @@ getroottable()[EventsID] <- {
             player.GetScriptScope().heldNadeType <- 0;
             player.GetScriptScope().effects <- {};
             player.GetScriptScope().lastonground <- 0;
-            AddThinkToEnt(player, "QTF2_PlayerThink");
 
             EntFireByHandle(player, "CallScriptFunction", "ApplyPlayerAttributes", 0, null, null);
         }
     }
 
     OnGameEvent_player_team = function (params) {
+        local player = GetPlayerFromUserID(params.userid);
+        local team = params.team;
+        if (team == TF_TEAM_RED || team == TF_TEAM_BLUE) {
+            AddThinkToEnt(player, "QTF2_PlayerThink");
+        } else {
+            SetPropString(player, "m_iszScriptThinkFunction", "");
+        }
     }
 
     OnGameEvent_teamplay_win_panel = function(params) {
@@ -280,6 +309,7 @@ getroottable()[EventsID] <- {
         GivePlayerLoadout(player);
         RemoveConcEffect(player);
         RemoveFlashEffect(player);
+        RemoveTranqEffect(player);
     }
 
     OnGameEvent_tf_game_over = function(params) {
