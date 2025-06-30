@@ -271,6 +271,22 @@ const STAT_LENGTH = 0;
         pack.Think();
     }
 
+    local flare = null;
+    while (flare = Entities.FindByClassname(flare, "tf_projectile_flare")) {
+        if (flare.GetCollisionGroup() == COLLISION_GROUP_DEBRIS) {
+            flare.Destroy();
+        } else {
+            flare.SetMoveType(MOVETYPE_FLY, MOVECOLLIDE_DEFAULT);
+        }
+    }
+
+    local ray = null;
+    while (ray = Entities.FindByClassname(ray, "tf_projectile_energy_ring")) {
+        local vel = ray.GetAbsVelocity();
+        vel.Norm();
+        ray.SetAbsVelocity(vel * 2048.0);
+    }
+
     return -1;
 }
 

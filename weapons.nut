@@ -34,10 +34,39 @@ printl("QTF2: Loaded weapons.nut")
 		player.Weapon_Switch(weapon)
 }
 
+
+::GivePlayerWeaponWithArms <- function(player, weapon, switchTo, armsModel)
+{
+    weapon.SetTeam(player.GetTeam())
+
+    for (local i = 0; i < MAX_WEAPONS; i++)
+    {
+        local held_weapon = NetProps.GetPropEntityArray(player, "m_hMyWeapons", i)
+        if (held_weapon == null)
+            continue
+        if (held_weapon.GetSlot() != weapon.GetSlot())
+            continue
+        held_weapon.Destroy()
+        NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i)
+        break
+    }
+
+    player.Weapon_Equip(weapon)
+
+    if(switchTo)
+        player.Weapon_Switch(weapon)
+
+    PrecacheModel(armsModel);
+    local modelIndex = GetModelIndex(armsModel);
+    weapon.SetModelSimple(armsModel);
+    weapon.SetCustomViewModelModelIndex(modelIndex);
+    SetPropInt(weapon, "m_iViewModelIndex", modelIndex);
+}
+
 ::RemoveCosmetic <- function(player, item_id) {
 	for (local wearable = player.FirstMoveChild(); wearable != null; wearable = wearable.NextMovePeer())
 	{
-		if (wearable.GetClassname() != "tf_wearable")
+		if (!startswith(wearable.GetClassname(), "tf_wearable") && wearable.GetClassname() != "tf_weapon_parachute")
 			continue;
 
 		local id = NetProps.GetPropInt(wearable, "m_AttributeManager.m_Item.m_iItemDefinitionIndex")
@@ -127,4 +156,52 @@ printl("QTF2: Loaded weapons.nut")
 	weapon.DispatchSpawn()
 
 	return weapon
+}
+
+::CreateSuperNailGun <- function() {
+    local weapon = CreateWeapon("tf_weapon_syringegun_medic", 17)
+    weapon.AddAttribute("clip size bonus", 2.0, 0)
+    /*weapon.AddAttribute("maxammo primary increased", 1.0, 0)*/
+    weapon.AddAttribute("Projectile speed increased", 2.5, 0)
+    //weapon.AddAttribute("fire rate penalty", 1.25, 0)
+    weapon.AddAttribute("damage bonus", 2.0, 0)
+    
+    weapon.DispatchSpawn()
+
+    return weapon
+}
+
+::CreateClassic <- function() {
+    local weapon = CreateWeapon("tf_weapon_sniperrifle_classic", 1098)
+    weapon.AddAttribute("sniper no headshot without full charge", casti2f(0), 0)
+    weapon.AddAttribute("damage penalty on bodyshot", 1.0, 0)
+    weapon.AddAttribute("damage penalty", 0.6, 0)
+    weapon.AddAttribute("crit_dmg_falloff", casti2f(1), 0)
+    
+    weapon.DispatchSpawn()
+
+    return weapon
+}
+
+::CreatePyroRocketLauncher <- function() {
+    local weapon = CreateWeapon("tf_weapon_flaregun", 740)
+    weapon.AddAttribute("self dmg push force decreased", 1.0, 0)
+
+    weapon.DispatchSpawn()
+
+    return weapon
+}
+
+::CreateRailgun <- function() {
+    local weapon = CreateWeapon("tf_weapon_drg_pomson", 588)
+    weapon.AddAttribute("subtract victim medigun charge on hit", 0.0, 0)
+    weapon.AddAttribute("subtract victim cloak on hit", 0.0, 0)
+    weapon.AddAttribute("fire rate increased", 1.5, 0)
+    weapon.AddAttribute("reload time decreased", 0.85, 0)
+    //weapon.AddAttribute("clip size bonus upgrade", 2.0, 0)
+    //SetPropFloat(weapon, "m_flEnergy", GetPropFloat(weapon, "m_flEnergy") * 2.0);
+    
+    weapon.DispatchSpawn()
+
+    return weapon
 }
