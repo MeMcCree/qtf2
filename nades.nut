@@ -289,7 +289,7 @@ class BaseGrenade {
         if (_owner) {
             if (_owner.GetTeam() == TF_TEAM_BLUE)
                 nade.SetSkin(1);
-            nade.SetTeam(_owner.GetTeam());
+            //nade.SetTeam(_owner.GetTeam());
             nade.SetOwner(_owner);
             owner = _owner;
         }
@@ -451,6 +451,7 @@ class ConcGrenade extends BaseGrenade {
                 local points = dir.Length() * 0.5;
                 points = radius - points;
                 local pushforce = dir.Scale(-points / 20.0);
+                ent.RemoveFlag(FL_ONGROUND)
                 ent.SetAbsVelocity(pushforce);
 
                 ApplyConcEffect(ent);
@@ -833,7 +834,7 @@ class GasGrenade extends BaseGrenade {
             if (Time() > self.nextHurtTime) {
                 local ent = null;
                 while (ent = Entities.FindInSphere(ent, self.entity.GetOrigin(), self.radius)) {
-                    if (IsPlayerValid(ent) && ent.IsAlive() && (!self.owner || ent.GetTeam() == self.owner.GetTeam())) {
+                    if (IsPlayerValid(ent) && ent.IsAlive() && (!self.owner || ent.GetTeam() != self.owner.GetTeam())) {
                         ent.TakeDamageEx(self.entity, self.owner, null, Vector(), Vector(), 5.0, DMG_POISON);
                         ApplyTranqEffect(ent);
                     }
