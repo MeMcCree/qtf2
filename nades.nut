@@ -3,6 +3,9 @@ printl("QTF2: Loaded nades.nut")
 ::grenCountSound <- "VFX.GrenCount";
 PrecacheScriptSound(grenCountSound);
 
+::grenPackPickupSound <- "AmmoPack.Touch";
+PrecacheScriptSound(grenPackPickupSound);
+
 ::HealGrenHealAmount <- 100;
 
 PrecacheParticle("gasgren_gas");
@@ -26,6 +29,12 @@ enum GrenadeTypes {
     Emp,
     Heal,
     Size
+};
+
+enum GrenadePackTypes {
+    Small,
+    Medium,
+    Large
 };
 
 ::NadeNames <- {
@@ -284,6 +293,7 @@ class BaseGrenade {
             nade.SetOwner(_owner);
             owner = _owner;
         }
+        nade.AddFlag(FL_GRENADE);
         nade.SetCollisionGroup(COLLISION_GROUP_DEBRIS);
         nade.ValidateScriptScope();
         nade.GetScriptScope().isGrenade <- true;
@@ -901,3 +911,130 @@ class GrenadeMaker {
 
     ply.GetScriptScope().nades <- [clone QTF2_DefClassNades[pc][0], clone QTF2_DefClassNades[pc][1]];
 }
+
+::min <- function(a, b) {
+    return (a < b) ? a : b;
+}
+
+::max <- function(a, b) {
+    return (a > b) ? a : b;
+}
+
+::BoxVsBox <- function(mins1, maxs1, mins2, maxs2) {
+    local x = max(mins1.x, mins2.x);
+    local xx = min(maxs1.x, maxs2.x);
+    local y = max(mins1.y, mins2.y);
+    local yy = min(maxs1.y, maxs2.y);
+    local z = max(mins1.z, mins2.z);
+    local zz = min(maxs1.z, maxs2.z);
+
+    if (zz < z || yy < y || xx < x)
+        return false;
+    return true;
+}
+
+class GrenadePack {
+    model = "";
+    modelScale = 1.0;
+    entity = null;
+    startpos = Vector();
+    ang = 0;
+    packSpawned = true;
+    packSpawnTime = 0;
+    gren1Amount = 0;
+    gren2Amount = 0;
+
+    constructor(pos, _model, _modelScale, _gren1Amount, _gren2Amount) {
+        model = _model;
+        gren1Amount = _gren1Amount;
+        gren2Amount = _gren2Amount;
+        startpos = pos;
+        modelScale = _modelScale;
+        SpawnPack();
+    }
+
+    function SpawnPack() {
+        local pack = Entities.CreateByClassname("prop_dynamic_override");
+
+        pack.SetOrigin(startpos);
+        pack.SetModelSimple(model);
+        pack.SetCollisionGroup(COLLISION_GROUP_DEBRIS);
+        pack.SetMoveType(MOVETYPE_FLY, MOVECOLLIDE_FLY_BOUNCE);
+        pack.SetAbsVelocity(Vector(0, 0, 0));
+        pack.SetModelScale(modelScale, 0.0);
+
+        Entities.DispatchSpawn(pack);
+        entity = pack;
+
+        ang = 0;
+        packSpawned = true;
+    }
+
+    function Think() {
+        if (!packSpawned) {
+            if (Time() > packSpawnTime) {
+                SpawnPack();
+            }
+            return;
+        }
+
+        local zOffset = sin(Time()) * 4;
+        local newPos = startpos + Vector(0, 0, zOffset);
+        entity.SetOrigin(newPos);
+        entity.SetAbsAngles(QAngle(0, ang, 0));
+        ang += 0.5;
+        
+        local trmins = startpos + Vector(-16, -16, -16);
+        local trmaxs = startpos + Vector(16, 16, 16);
+
+        for (local i = 1; i <= MaxPlayers; i++) {
+            local player = PlayerInstanceFromIndex(i);
+            if (!IsPlayerValid(player))
+                continue;
+
+            local plmins = player.GetOrigin() + player.GetPlayerMins();
+            local plmaxs = player.GetOrigin() + player.GetPlayerMaxs();
+
+            if (BoxVsBox(trmins, trmaxs, plmins, plmaxs)) {
+                if (GiveNades(player)) {
+                    entity.Destroy();
+                    entity = null;
+                    packSpawnTime = Time() + 10.0;
+                    packSpawned = false;
+                }
+            }
+        }
+    }
+
+    function GiveNades(ply) {
+        local pc = ply.GetPlayerClass();
+
+        if (ply.GetScriptScope().nades[0].amount == QTF2_DefClassNades[pc][0].amount &&
+            ply.GetScriptScope().nades[1].amount == QTF2_DefClassNades[pc][1].amount) {
+            return false;
+        }
+        ply.GetScriptScope().nades[0].amount = min(ply.GetScriptScope().nades[0].amount + gren1Amount, QTF2_DefClassNades[pc][0].amount);
+        ply.GetScriptScope().nades[1].amount = min(ply.GetScriptScope().nades[1].amount + gren2Amount, QTF2_DefClassNades[pc][1].amount);
+        
+        entity.EmitSound(grenPackPickupSound);
+
+        return true;
+    }
+};
+
+class GrenadePackMaker {
+    packs = {};
+    new_idx = 0;
+
+    function SpawnPack(type, pos) {
+        switch (type) {
+            case GrenadePackTypes.Small: {
+                packs[new_idx] <- GrenadePack(pos, "models/props_halloween/bombonomicon.mdl", 0.4, 4, 4);
+                break;
+            }
+            default:
+        }
+        new_idx += 1;
+        return new_idx - 1;
+    }
+};

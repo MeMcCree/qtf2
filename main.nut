@@ -25,9 +25,12 @@ DoIncludeScript("qtf2/weapons.nut", ROOT);
 DoIncludeScript("qtf2/player.nut", ROOT);
 
 ::grenade_maker <- GrenadeMaker();
+::grenadepack_maker <- GrenadePackMaker();
 
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
 gamerules.ValidateScriptScope();
+
+::MaxPlayers <- MaxClients().tointeger();
 
 ::ClientCommand <- Entities.CreateByClassname("point_clientcommand");
 Entities.DispatchSpawn(ClientCommand);
@@ -225,6 +228,7 @@ const STAT_LENGTH = 0;
         RemoveConcEffect(self);
         RemoveTranqEffect(self);
         RemoveFlashEffect(self);
+        return;
     }
 
     //AutoBhop();
@@ -261,6 +265,10 @@ const STAT_LENGTH = 0;
         if (!grenade.deleted) {
             grenade.Think();
         }
+    }
+
+    foreach (id, pack in grenadepack_maker.packs) {
+        pack.Think();
     }
 
     return -1;
@@ -338,8 +346,22 @@ getroottable()[EventsID] <- {
 
 function OnPostSpawn() {
     AddThinkToEnt(gamerules, "QTF2_Think");
-    printl("Postspawn")
+    printl("Postspawn");
+
+    local pack = null;
+    while (pack = Entities.FindByName(pack, "grenadepack_*")) {
+        local name = pack.GetName();
+        local splited = split(name, "_", true);
+        local type = splited.top();
+        switch (type) {
+            case "small": {
+                grenadepack_maker.SpawnPack(GrenadePackTypes.Small, pack.GetOrigin());
+                break;
+            }
+        }
+    }
 }
+
 
 local EventsTable = getroottable()[EventsID]
 foreach (name, callback in EventsTable) EventsTable[name] = callback.bindenv(this)
