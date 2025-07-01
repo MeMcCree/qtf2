@@ -177,6 +177,8 @@ const STAT_LENGTH = 0;
             self.GetScriptScope().isHoldingNade = false;
             self.GetScriptScope().waitingToStopInput = true;
 
+            self.EmitSound(grenThrowSound);
+
             local eyepos = self.EyePosition();
             local eyedir = self.EyeAngles().Forward();
 
@@ -244,14 +246,16 @@ const STAT_LENGTH = 0;
         }
     }
     
-    local grens = self.GetScriptScope().nades;
-    local val = NadeNames[grens[0].type] + " : " + grens[0].amount;
-    gren1Text.KeyValueFromString("message", val);
-    EntFireByHandle(gren1Text, "Display", "", 0.0, self, self);
-    val = NadeNames[grens[1].type] + " : " + grens[1].amount;
-    gren2Text.KeyValueFromString("message", val);
-    EntFireByHandle(gren2Text, "Display", "", 0.0, self, self);
-
+    if ("nades" in self.GetScriptScope()) {
+        local grens = self.GetScriptScope().nades;
+        local val = NadeNames[grens[0].type] + " : " + grens[0].amount;
+        gren1Text.KeyValueFromString("message", val);
+        EntFireByHandle(gren1Text, "Display", "", 0.0, self, self);
+        val = NadeNames[grens[1].type] + " : " + grens[1].amount;
+        gren2Text.KeyValueFromString("message", val);
+        EntFireByHandle(gren2Text, "Display", "", 0.0, self, self);
+    }
+    
     return -1;
 }
 
@@ -368,13 +372,14 @@ function OnPostSpawn() {
     while (pack = Entities.FindByName(pack, "grenadepack_*")) {
         local name = pack.GetName();
         local splited = split(name, "_", true);
-        local type = splited.top();
-        switch (type) {
-            case "small": {
-                grenadepack_maker.SpawnPack(GrenadePackTypes.Small, pack.GetOrigin());
-                break;
-            }
-        }
+        if (splited.len() < 3)
+            continue;
+
+        local gren1Amount = splited[1].tointeger();
+        local gren2Amount = splited[2].tointeger();
+        grenadepack_maker.SpawnPack(pack.GetOrigin(), pack.GetModelName(), pack.GetModelScale(), gren1Amount, gren2Amount);
+
+        pack.Destroy();
     }
 }
 

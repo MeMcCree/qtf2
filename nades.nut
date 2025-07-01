@@ -3,6 +3,9 @@ printl("QTF2: Loaded nades.nut")
 ::grenCountSound <- "VFX.GrenCount";
 PrecacheScriptSound(grenCountSound);
 
+::grenThrowSound <- "weapons/grenade_throw.wav";
+PrecacheScriptSound(grenThrowSound);
+
 ::grenPackPickupSound <- "AmmoPack.Touch";
 PrecacheScriptSound(grenPackPickupSound);
 
@@ -43,7 +46,7 @@ enum GrenadePackTypes {
     [GrenadeTypes.Napalm] = "Napalm",
     [GrenadeTypes.Gas] = "Gas",
     [GrenadeTypes.Flash] = "Flash",
-    [GrenadeTypes.Mirv] = "Mirv",
+    [GrenadeTypes.Mirv] = "Dynamite",
     [GrenadeTypes.Nail] = "Nail",
     [GrenadeTypes.Emp] = "EMP",
     [GrenadeTypes.Heal] = "Heal",
@@ -339,7 +342,7 @@ class BaseGrenade {
 };
 
 class NormalGrenade extends BaseGrenade {
-    model = "models/weapons/w_models/w_cannonball.mdl";
+    model = "models/weapons/w_models/w_grenade_frag.mdl";
 
     function Detonate() {
         local explosion = Entities.CreateByClassname("tf_generic_bomb");
@@ -361,7 +364,7 @@ class NormalGrenade extends BaseGrenade {
 };
 
 class MirvGrenade extends BaseGrenade {
-    model = "models/weapons/w_models/w_cannonball.mdl";
+    model = "models/qtf2/dynamite_bundle.mdl";
     isClaster = false
 
     function Think() {
@@ -399,7 +402,7 @@ class MirvGrenade extends BaseGrenade {
             local idx = grenade_maker.SpawnNade(GrenadeTypes.Mirv, pos, vel, owner);
             grenade_maker.grenades[idx].isClaster = true;
             grenade_maker.grenades[idx].detonation_time = Time() + 1.5 + RandomFloat(0.0, 0.25);
-            grenade_maker.grenades[idx].entity.SetModelScale(0.8, 0.0);
+            grenade_maker.grenades[idx].entity.SetModelSimple("models/qtf2/dynamite_stick.mdl");
 
             ang.y += 90;
             i++;
@@ -426,7 +429,7 @@ class MirvGrenade extends BaseGrenade {
 };
 
 class ConcGrenade extends BaseGrenade {
-    model = "models/weapons/w_models/w_cannonball.mdl";
+    model = "models/qtf2/w_grenade_conc.mdl";
 
     function Detonate() {
         local explosion = Entities.CreateByClassname("tf_generic_bomb");
@@ -464,7 +467,7 @@ class ConcGrenade extends BaseGrenade {
 };
 
 class HealGrenade extends BaseGrenade {
-    model = "models/weapons/w_models/w_cannonball.mdl";
+    model = "models/qtf2/w_grenade_heal.mdl";
 
     function Detonate() {
         local explosion = Entities.CreateByClassname("tf_generic_bomb");
@@ -509,7 +512,7 @@ class HealGrenade extends BaseGrenade {
 };
 
 class EmpGrenade extends BaseGrenade {
-    model = "models/weapons/w_models/w_cannonball.mdl";
+    model = "models/qtf2/w_grenade_emp.mdl";
 
     function ExplodeBuilding(building) {
         local explosion = Entities.CreateByClassname("tf_generic_bomb");
@@ -641,7 +644,7 @@ class FlashGrenade extends BaseGrenade {
 };
 
 class NapalmGrenade extends BaseGrenade {
-    model = "models/weapons/w_models/w_cannonball.mdl";
+    model = "models/qtf2/w_grenade_napalm.mdl";
     pulseTickInterval = 1.0;
     maxPulseAmount = 4;
     npulse = 0;
@@ -691,12 +694,13 @@ class NapalmGrenade extends BaseGrenade {
 };
 
 class NailGrenade extends BaseGrenade {
-    model = "models/weapons/w_models/w_cannonball.mdl";
+    model = "models/qtf2/w_grenade_nail.mdl";
     thinks = [
         function(self) {
             if (Time() > self.detonation_time) {
                 self.entity.SetMoveType(MOVETYPE_FLY, MOVECOLLIDE_FLY_BOUNCE);
                 self.entity.SetAbsAngles(QAngle(0, 0, 0));
+                self.entity.SetOrigin(self.entity.GetOrigin() + Vector(0, 0, 0.5));
                 self.entity.SetAbsVelocity(Vector(0, 0, 16));
                 self.stopFlightTime = Time() + 1.0;
                 self.curThink++;
@@ -797,7 +801,7 @@ class NailGrenade extends BaseGrenade {
 };
 
 class GasGrenade extends BaseGrenade {
-    model = "models/weapons/w_models/w_cannonball.mdl";
+    model = "models/qtf2/w_grenade_gas.mdl";
     thinks = [
         function(self) {
             if (Time() > self.detonation_time) {
@@ -1027,14 +1031,9 @@ class GrenadePackMaker {
     packs = {};
     new_idx = 0;
 
-    function SpawnPack(type, pos) {
-        switch (type) {
-            case GrenadePackTypes.Small: {
-                packs[new_idx] <- GrenadePack(pos, "models/props_halloween/bombonomicon.mdl", 0.4, 4, 4);
-                break;
-            }
-            default:
-        }
+    function SpawnPack(pos, model, modelScale, gren1Amount, gren2Amount) {
+        packs[new_idx] <- GrenadePack(pos, model, modelScale, gren1Amount, gren2Amount);
+
         new_idx += 1;
         return new_idx - 1;
     }
